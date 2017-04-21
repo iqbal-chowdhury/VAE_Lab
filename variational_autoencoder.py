@@ -52,6 +52,7 @@ def vae_loss(x, x_decoded_mean):
 
 vae = Model(x, x_decoded_mean)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
+vae.summary()
 
 # train the VAE on MNIST digits
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -60,6 +61,7 @@ x_train = x_train.astype('float32') / 255.
 x_test = x_test.astype('float32') / 255.
 x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
 x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
+
 
 start = time.time()
 vae.fit(x_train, x_train,
@@ -70,7 +72,7 @@ vae.fit(x_train, x_train,
 stop = time.time()
 print("Runtime: {:.3f}s".format(stop-start))
 
-assert 0, "early exit"
+assert 1, "early exit"
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)
 

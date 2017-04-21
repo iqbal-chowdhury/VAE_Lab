@@ -31,7 +31,7 @@ else:
 latent_dim = 2
 intermediate_dim = 128
 epsilon_std = 1.0
-epochs = 50
+epochs = 3
 conv_act = 'relu'
 
 x = Input(batch_shape=(batch_size,) + original_img_size)
@@ -108,6 +108,8 @@ deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
 x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
+beta_kl = K.variable(value=1.0)
+beta_xe = K.variable(value=0.0)
 
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim
@@ -116,7 +118,8 @@ def vae_loss(x, x_decoded_mean):
     x_decoded_mean = K.flatten(x_decoded_mean)
     xent_loss = img_rows * img_cols * metrics.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-    return xent_loss + kl_loss
+    return beta_xe*xent_loss + beta_kl*kl_loss
+
 
 vae = Model(x, x_decoded_mean_squash)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
@@ -133,7 +136,8 @@ x_test = x_test.reshape((x_test.shape[0],) + original_img_size)
 print('x_train.shape:', x_train.shape)
 
 start = time.time()
-vae.fit(x_train, x_train,
+N=10000
+vae.fit(x_train[:], x_train[:],
         shuffle=True,
         nb_epoch=epochs,
         batch_size=batch_size,
@@ -143,13 +147,22 @@ elapsed = stop-start
 print("Activation:", conv_act)
 print("Process time: {:.2f}, {:.3f}s/epoch".format(elapsed, elapsed/epochs))
 
+K.set_value(beta_xe, 1.0)
+K.set_value(beta_kl, 0.0)
+
+vae.fit(x_train[:N], x_train[:N],
+        shuffle=True,
+        nb_epoch=1,
+        batch_size=batch_size,
+        validation_data=(x_test, x_test))
+
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)
 
 # display a 2D plot of the digit classes in the latent space
 x_test_encoded = encoder.predict(x_test, batch_size=batch_size)
 plt.figure(figsize=(6, 6))
-plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
+plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test, cmap='Vega10')
 plt.colorbar()
 plt.show()
 
