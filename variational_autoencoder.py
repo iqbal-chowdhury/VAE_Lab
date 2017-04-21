@@ -3,6 +3,8 @@
 Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
 '''
 import numpy as np
+np.random.seed(1337)
+import time
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
@@ -59,12 +61,16 @@ x_test = x_test.astype('float32') / 255.
 x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
 x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
+start = time.time()
 vae.fit(x_train, x_train,
         shuffle=True,
         epochs=epochs,
         batch_size=batch_size,
         validation_data=(x_test, x_test))
+stop = time.time()
+print("Runtime: {:.3f}s".format(stop-start))
 
+assert 0, "early exit"
 # build a model to project inputs on the latent space
 encoder = Model(x, z_mean)
 
