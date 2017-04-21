@@ -54,7 +54,7 @@ z_log_var = Dense(latent_dim)(hidden)
 def sampling(args):
     z_mean, z_log_var = args
     epsilon = K.random_normal(shape=(batch_size, latent_dim),
-                              mean=0., std=epsilon_std)
+                              mean=0., stddev=epsilon_std)
     return z_mean + K.exp(z_log_var) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
@@ -91,7 +91,7 @@ decoder_deconv_3_upsamp = Deconvolution2D(nb_filters, 2, 2,
                                           subsample=(2, 2),
                                           activation='relu')
 decoder_mean_squash = Convolution2D(img_chns, 2, 2,
-                                    border_mode='valid',
+                                    border_mode='same',
                                     activation='sigmoid')
 
 hid_decoded = decoder_hid(z)
