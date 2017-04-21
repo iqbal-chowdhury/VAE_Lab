@@ -16,6 +16,9 @@ from keras import backend as K
 from keras import metrics
 from keras.datasets import mnist
 
+beta_kl = K.variable(value=0.0)
+beta_xe = K.variable(value=1.0)
+
 # input image dimensions
 img_rows, img_cols, img_chns = 28, 28, 1
 # number of convolutional filters to use
@@ -31,7 +34,7 @@ else:
 latent_dim = 2
 intermediate_dim = 128
 epsilon_std = 1.0
-epochs = 3
+epochs = 4
 conv_act = 'relu'
 
 x = Input(batch_shape=(batch_size,) + original_img_size)
@@ -108,8 +111,7 @@ deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
 x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
 x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
-beta_kl = K.variable(value=1.0)
-beta_xe = K.variable(value=0.0)
+
 
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim
@@ -135,8 +137,20 @@ x_test = x_test.reshape((x_test.shape[0],) + original_img_size)
 
 print('x_train.shape:', x_train.shape)
 
+# build a model to project inputs on the latent space
+encoder = Model(x, z_mean)
+def plot_latent():
+    # display a 2D plot of the digit classes in the latent space
+    x_test_encoded = encoder.predict(x_test, batch_size=batch_size)
+    plt.figure(figsize=(6, 6))
+    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test, cmap='Vega10')
+    plt.colorbar()
+    plt.show()
+
+K.set_value(beta_xe, 1.0)
+K.set_value(beta_kl, 0.0)
 start = time.time()
-N=10000
+N=60000
 vae.fit(x_train[:], x_train[:],
         shuffle=True,
         nb_epoch=epochs,
@@ -146,25 +160,48 @@ stop = time.time()
 elapsed = stop-start
 print("Activation:", conv_act)
 print("Process time: {:.2f}, {:.3f}s/epoch".format(elapsed, elapsed/epochs))
+plot_latent()
 
 K.set_value(beta_xe, 1.0)
-K.set_value(beta_kl, 0.0)
+K.set_value(beta_kl, 0.5)
+
 
 vae.fit(x_train[:N], x_train[:N],
         shuffle=True,
         nb_epoch=1,
         batch_size=batch_size,
         validation_data=(x_test, x_test))
+plot_latent()
 
-# build a model to project inputs on the latent space
-encoder = Model(x, z_mean)
+K.set_value(beta_xe, 1.0)
+K.set_value(beta_kl, 0.0)
 
-# display a 2D plot of the digit classes in the latent space
-x_test_encoded = encoder.predict(x_test, batch_size=batch_size)
-plt.figure(figsize=(6, 6))
-plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test, cmap='Vega10')
-plt.colorbar()
-plt.show()
+
+vae.fit(x_train[:], x_train[:],
+        shuffle=True,
+        nb_epoch=epochs,
+        batch_size=batch_size,
+        validation_data=(x_test, x_test))
+plot_latent()
+
+K.set_value(beta_xe, 1.0)
+K.set_value(beta_kl, 1.0)
+
+
+vae.fit(x_train[:], x_train[:],
+        shuffle=True,
+        nb_epoch=5,
+        batch_size=batch_size,
+        validation_data=(x_test, x_test))
+
+
+
+plot_latent()
+
+
+
+
+
 
 # build a digit generator that can sample from the learned distribution
 decoder_input = Input(shape=(latent_dim,))
